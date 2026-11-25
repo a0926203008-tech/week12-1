@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>航運行政人員 Excel 資料前處理實務教學簡報</title>
+  <!-- Tailwind CSS via allowlisted CDN -->
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+    
+    :root {
+      --bg-dark: #090e17;
+      --card-dark: #111a28;
+      --border-dark: #1e2e45;
+      --primary: #0284c7;
+      --primary-light: #38bdf8;
+      --accent-teal: #0d9488;
+      --accent-gold: #f59e0b;
+      --accent-rose: #f43f5e;
+    }
+
+    body {
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: #f1f5f9;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+    }
+
+    /* Presentation Deck Container (Fixed 16:9 Aspect Ratio on screen) */
+    .deck-viewport {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: radial-gradient(circle at 50% 20%, #132238 0%, #080d16 80%);
+    }
+
+    .slide-stage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem 2rem;
+    }
+
+    .slide-canvas {
+      width: 100%;
+      max-width: 1540px;
+      height: 100%;
+      max-height: 866px; /* 16:9 proportion approx */
+      background: rgba(17, 26, 40, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.15);
+      border-radius: 1.25rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 40px rgba(14, 165, 233, 0.08);
+      position: relative;
+      overflow-y: auto;
+      padding: 2.5rem 3.25rem;
+      display: none;
+      opacity: 0;
+      transform: scale(0.985);
+      transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .slide-canvas.active {
+      display: flex;
+      flex-direction: column;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Custom scrollbar inside slide */
+    .slide-canvas::-webkit-scrollbar {
+      width: 6px;
+    }
+    .slide-canvas::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    .slide-canvas::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.25);
+      border-radius: 4px;
+    }
+
+    /* Keyframes */
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+      50% { box-shadow: 0 0 25px rgba(56, 189, 248, 0.45); }
+    }
+
+    .glow-hover:hover {
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+      border-color: rgba(56, 189, 248, 0.5);
+    }
+
+    /* Image zoom cursor */
+    .zoomable-img {
+      cursor: zoom-in;
+      transition: transform 0.25s ease, filter 0.25s ease;
+    }
+    .zoomable-img:hover {
+      transform: scale(1.015);
+      filter: brightness(1.06);
+    }
+
+    /* Lightbox Modal */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(10px);
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    #lightbox.active {
+      display: flex;
+    }
+
+    /* Drawer Menu */
+    #drawer {
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #drawer.open {
+      transform: translateX(0);
+    }
+
+    /* Print / PDF view optimization */
+    @media print {
+      body { overflow: visible !important; }
+      .deck-viewport { height: auto !important; }
+      .slide-canvas { display: block !important; opacity: 1 !important; page-break-after: always; max-height: none !important; }
+      header, footer, #drawer, #lightbox, .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="text-slate-100">
+
+  <!-- Main Presentation Deck Viewport -->
+  <div class="deck-viewport">
+
+    <!-- Top Bar: Navigation, Title & Utilities -->
+    <header class="h-14 px-6 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/70 backdrop-blur z-20">
+      <div class="flex items-center gap-3">
+        <button id="btn-toggle-drawer" class="p-2 rounded-lg hover:bg-slate-800 text-sky-400 transition" title="目錄清單 (M / O)">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-sky-950/90 text-sky-400 border border-sky-800/50 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+            EXCEL DATA PREPROCESSING
+          </span>
+          <span class="text-sm font-semibold text-slate-300 hidden md:inline truncate max-w-md" id="top-title">
+            航運行政人員 Excel 資料前處理實務教學簡報
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs">
+        <!-- Presentation Timer -->
+        <div class="hidden sm:flex items-center gap-1.5 bg-slate-900/90 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-400 font-mono">
+          <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span id="deck-timer">00:00</span>
+          <button id="btn-timer-reset" class="ml-1 hover:text-sky-300" title="重設計時">⟳</button>
+        </div>
+
+        <!-- Presenter Notes Toggle -->
+        <button id="btn-toggle-notes" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition flex items-center gap-1.5" title="講義重點筆記 (N)">
+          <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <span class="hidden sm:inline">講師筆記</span>
+        </button>
+
+        <!-- Fullscreen Toggle -->
+        <button id="btn-fullscreen" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition" title="全螢幕模式 (F)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Slide Stage -->
+    <main class="slide-stage">
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 1: COVER SLIDE -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas active justify-center text-center" data-title="首頁：航運行政人員 Excel 資料前處理" data-note="建議開場時先強調：這份教材是專為初學者量身打造，所有案例均使用真實航運提單、港口代碼與費用數據。提醒學員本教學包含免公式的滑鼠操作與可複製套用的自動化函數公式。">
+        <div class="max-w-4xl mx-auto space-y-6">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 text-xs font-semibold tracking-wide uppercase">
+            <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            航運行政實務進修系列教材 ｜ 高科大作業成果
+          </div>
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
+            航運行政人員<br>
+            <span class="bg-gradient-to-r from-sky-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">Excel 資料前處理實務</span>
+          </h1>
+          <p class="text-lg sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal">
+            從介面導覽、資料健檢、30 筆示範檔到 300 筆跨情境實戰演練<br>
+            <span class="text-sm text-sky-400/90 font-mono mt-1 block">Tidy Data • 零公式功能操作 • 常用自動化清洗函數 • ISO 6346 檢核</span>
+          </p>
+
+          <!-- 4 Card Highlights -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-4 text-left">
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 glow-hover transition">
+              <div class="text-sky-400 text-xs font-semibold mb-1">目標受眾</div>
+              <div class="text-sm font-bold text-slate-200">航運行政 / 船務 OP</div>
+              <div class="text-xs text-slate-400 mt-1">零基礎 Excel 新手</div>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 glow-hover transition">
+              <div class="text-teal-400 text-xs font-semibold mb-1">示範工具</div>
+              <div class="text-sm font-bold text-slate-200">MS Excel 繁體中文</div>
+              <div class="text-xs text-slate-400 mt-1">選單功能 + 實務函數</div>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 glow-hover transition">
+              <div class="text-amber-400 text-xs font-semibold mb-1">實體配套</div>
+              <div class="text-sm font-bold text-slate-200">30 筆 + 300 筆活頁簿</div>
+              <div class="text-xs text-slate-400 mt-1">含公式拆解與解答</div>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 glow-hover transition">
+              <div class="text-emerald-400 text-xs font-semibold mb-1">核心輸出</div>
+              <div class="text-sm font-bold text-slate-200">35 頁專業 Word 手冊</div>
+              <div class="text-xs text-slate-400 mt-1">16 張真實實機截圖</div>
+            </div>
+          </div>
+
+          <div class="pt-4 flex items-center justify-center gap-3">
+            <button class="btn-next-slide px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 text-white font-bold shadow-lg shadow-sky-500/25 hover:from-sky-400 hover:to-teal-400 transition flex items-center gap-2">
+              開始學習簡報
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
+            <span class="text-xs text-slate-500 hidden sm:inline">可直接按鍵盤 [空白鍵] 或 [→] 切換</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 2: AGENDA / TABLE OF CONTENTS -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="課程大綱：八大單元架構" data-note="讓學員在 1 分鐘內掌握整體學習旅程：從先看懂介面，到懂得為什麼要清理，接著是兩大清理手段（滑鼠點選與函數公式），最後是 300 筆實戰挑戰。">
+        <div class="space-y-4">
+          <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-sky-400 tracking-wider uppercase">Course Outline</span>
+              <h2 class="text-2xl font-bold text-white">課程大綱：全書八大教學模組</h2>
+            </div>
+            <span class="text-xs text-slate-400 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 font-mono">點擊任一項目可快速跳轉</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+            <div class="group p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-sky-500/50 hover:bg-slate-900 transition cursor-pointer" onclick="goToSlide(2)">
+              <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 font-bold flex items-center justify-center text-sm border border-sky-500/20">01</span>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200 group-hover:text-sky-300">第 1 章 ｜ 前言與教學使用指南</h3>
+                  <p class="text-xs text-slate-400 mt-1">為什麼航運行政要學資料前處理？全書學習地圖與配套檔案說明。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="group p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-sky-500/50 hover:bg-slate-900 transition cursor-pointer" onclick="goToSlide(3)">
+              <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 font-bold flex items-center justify-center text-sm border border-sky-500/20">02</span>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200 group-hover:text-sky-300">第 2 章 ｜ 認識 MS Excel 操作介面</h3>
+                  <p class="text-xs text-slate-400 mt-1">九大視窗核心區域、功能區「資料/公式」導覽、4 種游標形態與高頻快速鍵。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="group p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-sky-500/50 hover:bg-slate-900 transition cursor-pointer" onclick="goToSlide(5)">
+              <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 font-bold flex items-center justify-center text-sm border border-teal-500/20">03</span>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200 group-hover:text-teal-300">第 3 章 ｜ 資料前處理基本常識</h3>
+                  <p class="text-xs text-slate-400 mt-1">GIGO 理論、整潔資料三大原則、四大資料型態判別與 SOP 黃金五步驟。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="group p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-sky-500/50 hover:bg-slate-900 transition cursor-pointer" onclick="goToSlide(8)">
+              <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 font-bold flex items-center justify-center text-sm border border-teal-500/20">04</span>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200 group-hover:text-teal-300">第 4 章 ｜ 30 筆示範檔建置與健檢</h3>
+                  <p class="text-xs text-slate-400 mt-1">海運出口訂艙明細表、12 大欄位定義規範與刻意埋入之 8 類髒資料全面清查。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="group p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-amber-500/50 hover:bg-slate-900 transition cursor-pointer" onclick="goToSlide(9)">
+              <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 font-bold flex items-center justify-center text-sm border border-amber-500/20">05</span>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200 group-hover:text-amber-300">第 5 章 ｜ 功能選項免公式清理術</h3>
+                  <p class="text-xs text-slate-400 mt-1">條件式標紅、移除重複項目、Ctrl+H 替換、資料剖析拆解、篩選空格與 Ctrl+T 表格。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="group p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-amber-500/50 hover:bg-slate-900 transition cursor-pointer" onclick="goToSlide(12)">
+              <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 font-bold flex items-center justify-center text-sm border border-amber-500/20">06</span>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200 group-hover:text-amber-300">第 6 章 ｜ 函數公式實戰自動化</h3>
+                  <p class="text-xs text-slate-400 mt-1">TRIM/CLEAN、UPPER、LEFT/MID、LEN 11碼貨櫃檢核、VALUE、DATE、IF 與 XLOOKUP。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="group p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900 transition cursor-pointer" onclick="goToSlide(14)">
+              <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 font-bold flex items-center justify-center text-sm border border-emerald-500/20">07</span>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200 group-hover:text-emerald-300">第 7 章 ｜ 300 筆跨情境實戰與解答</h3>
+                  <p class="text-xs text-slate-400 mt-1">FCL、LCL、進口延滯、危險品冷凍、空運急件 5 大情境、八大任務與基準驗證。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="group p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900 transition cursor-pointer" onclick="goToSlide(16)">
+              <div class="flex items-start gap-3">
+                <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 font-bold flex items-center justify-center text-sm border border-emerald-500/20">08</span>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-200 group-hover:text-emerald-300">第 8 章 ｜ 參考資料與延伸閱讀</h3>
+                  <p class="text-xs text-slate-400 mt-1">Microsoft Excel 官方文件、Hadley Wickham 論文、UNECE、Incoterms 2020、ISO 6346。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 3: WHY DATA PREPROCESSING? -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第1章：為什麼航運人需要「資料前處理」？" data-note="強調重點：很多新人以為學 Excel 是直接學樞紐分析表或繪圖，但航運資料大多來自外來系統，如果資料本身格式髒亂，任何進階統計都會全面算錯。">
+        <div class="space-y-4">
+          <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-sky-400 tracking-wider uppercase">Chapter 1 ｜ Concept & Background</span>
+              <h2 class="text-2xl font-bold text-white">為什麼航運行政人員必須先學「資料前處理」？</h2>
+            </div>
+            <span class="text-xs text-amber-400 bg-amber-950/60 px-3 py-1 rounded-full border border-amber-800/60 font-medium">Garbage In, Garbage Out (GIGO)</span>
+          </div>
+
+          <!-- 3 Columns Comparison -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="p-4 rounded-xl bg-red-950/20 border border-red-900/40 space-y-2.5">
+              <div class="w-8 h-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center font-bold text-base">⚠️</div>
+              <h3 class="text-base font-bold text-red-300">痛點一：金額加總變成 0</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                系統匯出海運費為 <code class="text-amber-300 bg-black/40 px-1 py-0.5 rounded">USD 1,850</code> 或 <code class="text-amber-300 bg-black/40 px-1 py-0.5 rounded">$2,100 </code>，因為夾帶文字與空白，Excel 自動判定為「文字型態」，使用 <code class="text-sky-300">=SUM()</code> 時全數被略過，財務結算慘遭漏算！
+              </p>
+            </div>
+
+            <div class="p-4 rounded-xl bg-amber-950/20 border border-amber-900/40 space-y-2.5">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-base">🌪️</div>
+              <h3 class="text-base font-bold text-amber-300">痛點二：同一個港口四分五裂</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                同樣是高雄港，有人填 <code class="text-amber-300 bg-black/40 px-1 py-0.5 rounded">TWKHH</code>、有人填小寫 <code class="text-amber-300 bg-black/40 px-1 py-0.5 rounded">twkhh</code>，甚至有人多按空白變成 <code class="text-amber-300 bg-black/40 px-1 py-0.5 rounded">" TWKHH "</code>。拉樞紐分析表時，同一個港口被拆成三筆，管理階層無法統計正確裝船量。
+              </p>
+            </div>
+
+            <div class="p-4 rounded-xl bg-sky-950/20 border border-sky-900/40 space-y-2.5">
+              <div class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-base">❌</div>
+              <h3 class="text-base font-bold text-sky-300">痛點三：VLOOKUP 查表滿江紅 #N/A</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                當想比對標準港口中文名稱時，因為輸入代碼尾端帶有隱形換行符號 <code class="text-amber-300 bg-black/40 px-1 py-0.5 rounded">\n</code> 或前後空格，查表函數判定完全不相符，導致滿屏錯誤代碼，行政作業嚴重卡關。
+              </p>
+            </div>
+          </div>
+
+          <!-- Bottom Banner Quote -->
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center gap-4">
+            <div class="text-3xl text-sky-400 font-serif">“</div>
+            <div class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <strong>資料科學實務統計：</strong> 前處理作業往往佔據整體資料分析流程 <strong class="text-sky-300 font-mono text-base">60% ~ 80%</strong> 的時間。花 10 分鐘把資料洗乾淨，後續做樞紐分析、製作管理報表與自動化公式就能一帆風順！
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 4: EXCEL INTERFACE ANATOMY (9 AREAS) -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第2章：Excel 操作介面九大核心區域" data-note="引導學員觀看這張實機截圖，特別說明 6 號「資料編輯列」是前處理最重要的窗口，因為儲存格看不出的換行、前後空白與公式，在編輯列裡無所遁形。">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-sky-400 tracking-wider uppercase">Chapter 2 ｜ Excel Interface Anatomy</span>
+              <h2 class="text-2xl font-bold text-white">認識 Excel 操作介面：九大核心區域分解</h2>
+            </div>
+            <span class="text-xs text-slate-400">點擊圖片可放大高解析度檢視</span>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+            <!-- Left: Screenshot (7 cols) -->
+            <div class="lg:col-span-7 bg-slate-950/80 p-2 rounded-xl border border-slate-800">
+              <img src="images/fig_2_1_excel_interface.png" alt="Excel 介面九大區域" class="zoomable-img rounded-lg w-full h-auto object-cover border border-slate-700/60" onclick="openLightbox(this.src)">
+              <div class="text-center text-xs text-slate-400 mt-2 font-mono">圖 1 ｜ MS Excel 繁體中文操作介面九大核心區域實機標註圖</div>
+            </div>
+
+            <!-- Right: 9 Points Interactive Grid (5 cols) -->
+            <div class="lg:col-span-5 space-y-2 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-red-500/20 text-red-400 font-bold flex items-center justify-center border border-red-500/40">1</span>
+                <div><strong class="text-slate-200">快速存取工具列：</strong> 儲存、復原 (Ctrl+Z) 一鍵救回誤刪資料。</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 font-bold flex items-center justify-center border border-teal-500/40">2</span>
+                <div><strong class="text-slate-200">標題列：</strong> 檢視目前活頁簿檔名與存檔狀態。</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-red-500/20 text-red-400 font-bold flex items-center justify-center border border-red-500/40">3</span>
+                <div><strong class="text-slate-200">功能區索引標籤：</strong> 切換「常用」、「資料」、「公式」三大主力標籤。</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center border border-blue-500/40">4</span>
+                <div><strong class="text-slate-200">功能區指令群組：</strong> 各標籤底下的命令工具箱。</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-red-500/20 text-red-400 font-bold flex items-center justify-center border border-red-500/40">5</span>
+                <div><strong class="text-slate-200">名稱方塊：</strong> 顯示目前座標，可直接輸入 A1:L31 瞬間全選。</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-emerald-500/40 bg-emerald-950/10 flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center border border-emerald-500/40">6</span>
+                <div><strong class="text-emerald-300">資料編輯列 (fx)：</strong> ★靈魂之窗！看穿儲存格是否藏有多餘空白與換行。</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center border border-amber-500/40">7</span>
+                <div><strong class="text-slate-200">工作表編輯區：</strong> 直欄與橫列交錯之儲存格明細。</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-red-500/20 text-red-400 font-bold flex items-center justify-center border border-red-500/40">8</span>
+                <div><strong class="text-slate-200">工作表標籤列：</strong> 多分頁管理（原始資料、對照表、清理結果）。</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center border border-blue-500/40">9</span>
+                <div><strong class="text-slate-200">狀態列：</strong> 反白數字時右下角即時顯示「平均值、計數、加總」。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 5: RIBBON & CURSOR SHAPES & SHORTCUTS -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第2章：功能區、游標形態與快速鍵" data-note="強調初學者最常犯的錯誤：想複製公式卻變成搬移儲存格，就是因為沒有認出白色粗十字與右下角小綠點實心十字的區別。">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-sky-400 tracking-wider uppercase">Chapter 2 ｜ Ribbon & Practical Controls</span>
+              <h2 class="text-2xl font-bold text-white">兩大主力功能區、滑鼠游標 4 態與 6 大神級快速鍵</h2>
+            </div>
+          </div>
+
+          <!-- Top: 2 Ribbon Tabs Thumbnails -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="bg-slate-950 p-2 rounded-xl border border-slate-800">
+              <div class="text-xs font-bold text-teal-400 mb-1 flex items-center gap-1.5">
+                <span>圖 2 ｜「資料」標籤：排序、篩選、資料剖析與移除重複項</span>
+              </div>
+              <img src="images/fig_2_2_ribbon_data_tab.png" class="zoomable-img rounded w-full h-32 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+            </div>
+            <div class="bg-slate-950 p-2 rounded-xl border border-slate-800">
+              <div class="text-xs font-bold text-sky-400 mb-1 flex items-center gap-1.5">
+                <span>圖 3 ｜「公式」標籤：文字、日期、查閱參照與邏輯函數庫</span>
+              </div>
+              <img src="images/fig_2_3_ribbon_formulas_tab.png" class="zoomable-img rounded w-full h-32 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+            </div>
+          </div>
+
+          <!-- Bottom: Cursor & Shortcuts Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1 text-xs">
+            <!-- Cursors -->
+            <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+              <h4 class="font-bold text-slate-200 text-sm flex items-center gap-2">
+                <span>🎯 滑鼠游標四種必辨形態</span>
+              </h4>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="p-2 rounded bg-slate-950/70 border border-slate-800">
+                  <div class="font-bold text-sky-300">✚ 白色空心粗十字</div>
+                  <div class="text-slate-400 text-2xs mt-0.5">置於格中央：選取儲存格或拖曳範圍</div>
+                </div>
+                <div class="p-2 rounded bg-slate-950/70 border border-slate-800">
+                  <div class="font-bold text-amber-300">＋ 細黑實心十字</div>
+                  <div class="text-slate-400 text-2xs mt-0.5">右下角小綠點：連點兩下自動填滿 300 列！</div>
+                </div>
+                <div class="p-2 rounded bg-slate-950/70 border border-slate-800">
+                  <div class="font-bold text-emerald-300">✥ 四向黑移動箭頭</div>
+                  <div class="text-slate-400 text-2xs mt-0.5">置於邊界：搬移整個儲存格內容</div>
+                </div>
+                <div class="p-2 rounded bg-slate-950/70 border border-slate-800">
+                  <div class="font-bold text-purple-300">↔ 雙向欄寬調節</div>
+                  <div class="text-slate-400 text-2xs mt-0.5">欄標題分界：連點兩下自動展開被遮蔽內容</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Shortcuts -->
+            <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+              <h4 class="font-bold text-slate-200 text-sm flex items-center gap-2">
+                <span>⚡ 航運前處理 6 大高頻快速鍵</span>
+              </h4>
+              <div class="grid grid-cols-2 gap-2 font-mono">
+                <div class="p-2 rounded bg-slate-950/70 border border-slate-800">
+                  <div class="text-sky-400 font-bold">Ctrl + H</div>
+                  <div class="text-slate-400 text-2xs font-sans">開啟「尋找及取代」視窗</div>
+                </div>
+                <div class="p-2 rounded bg-slate-950/70 border border-slate-800">
+                  <div class="text-sky-400 font-bold">Ctrl + Shift + L</div>
+                  <div class="text-slate-400 text-2xs font-sans">一鍵開啟 / 關閉「自動篩選」</div>
+                </div>
+                <div class="p-2 rounded bg-slate-950/70 border border-slate-800">
+                  <div class="text-sky-400 font-bold">Ctrl + T</div>
+                  <div class="text-slate-400 text-2xs font-sans">建立結構化「格式化為表格」</div>
+                </div>
+                <div class="p-2 rounded bg-slate-950/70 border border-slate-800">
+                  <div class="text-sky-400 font-bold">F5 ➔ 特殊 ➔ 空格</div>
+                  <div class="text-slate-400 text-2xs font-sans">瞬間全選表格內所有漏填空白格</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 6: TIDY DATA & DATA TYPES -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第3章：整潔資料原則與資料型態" data-note="強調：Excel 靠左代表文字，靠右代表數值與日期。初學者只要看對齊方向，就能立刻知道該欄位能不能拿去加總。嚴禁合併儲存格是整潔資料最底層的鐵律。">
+        <div class="space-y-4">
+          <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-teal-400 tracking-wider uppercase">Chapter 3 ｜ Tidy Data Principles</span>
+              <h2 class="text-2xl font-bold text-white">整潔資料三大原則（Tidy Data）與四大型態辨識</h2>
+            </div>
+            <span class="text-xs text-slate-400 font-mono">Hadley Wickham (2014)</span>
+          </div>
+
+          <!-- Tidy Data 3 Rules -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            <div class="p-4 rounded-xl bg-slate-900 border-t-2 border-sky-400 space-y-1.5">
+              <span class="text-xs font-bold text-sky-400 uppercase tracking-wider">Principle 1</span>
+              <h3 class="text-base font-bold text-slate-200">一欄只放一個變數</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                嚴禁將「船公司」與「提單號」擠在同一格（如 EVG-EGLV1426001801）。海運費欄只能有純數字，幣別（USD）應寫在表頭。
+              </p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900 border-t-2 border-teal-400 space-y-1.5">
+              <span class="text-xs font-bold text-teal-400 uppercase tracking-wider">Principle 2</span>
+              <h3 class="text-base font-bold text-slate-200">一列只放一筆紀錄</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                不可在中途插入「小計列」、「空白隔行列」或「跨欄置中區隔列」，否則排序和篩選功能會徹底斷裂錯位。
+              </p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900 border-t-2 border-amber-400 space-y-1.5">
+              <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Principle 3</span>
+              <h3 class="text-base font-bold text-slate-200">嚴禁合併儲存格</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                合併儲存格（Merge Cells）是資料分析的最大天敵！除了左上角第一格外其餘皆為空值，會摧毀樞紐分析與公式參照。
+              </p>
+            </div>
+          </div>
+
+          <!-- Data Types Visual Table -->
+          <div class="rounded-xl overflow-hidden border border-slate-800 bg-slate-900/60 text-xs">
+            <div class="px-4 py-2.5 bg-slate-900 font-bold text-slate-300 border-b border-slate-800">
+              Excel 四大基本資料型態與「肉眼對齊檢測法」（未手動置中前提）
+            </div>
+            <div class="grid grid-cols-4 p-3 gap-2 border-b border-slate-800/60 bg-slate-950/40 font-mono text-2xs text-slate-400">
+              <div>資料型態</div>
+              <div>預設對齊方向</div>
+              <div>本質說明</div>
+              <div>航運行政常見異常範例</div>
+            </div>
+            <div class="grid grid-cols-4 p-3 gap-2 border-b border-slate-800/40 items-center">
+              <div class="font-bold text-sky-300">文字 (Text)</div>
+              <div><span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-300 border border-blue-700/50">靠左對齊 ⬅</span></div>
+              <div class="text-slate-300">純字串，無法進行數學加減乘除</div>
+              <div class="text-amber-400 font-mono text-2xs">"USD 1,850"、" 1850 "、左上綠三角</div>
+            </div>
+            <div class="grid grid-cols-4 p-3 gap-2 border-b border-slate-800/40 items-center">
+              <div class="font-bold text-emerald-300">數值 (Number)</div>
+              <div><span class="px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-700/50">靠右對齊 ➡</span></div>
+              <div class="text-slate-300">可運算純數字，支援 SUM、AVERAGE</div>
+              <div class="text-slate-400 font-mono text-2xs">1850 (不含任何英文單位符號)</div>
+            </div>
+            <div class="grid grid-cols-4 p-3 gap-2 border-b border-slate-800/40 items-center">
+              <div class="font-bold text-teal-300">日期 (Date)</div>
+              <div><span class="px-2 py-0.5 rounded bg-teal-900/40 text-teal-300 border border-teal-700/50">靠右對齊 ➡</span></div>
+              <div class="text-slate-300">內部本質為「序列整數」（1900/1/1 起算）</div>
+              <div class="text-amber-400 font-mono text-2xs">"2026.03.02" 靠左(文字)不可相減！</div>
+            </div>
+            <div class="grid grid-cols-4 p-3 gap-2 items-center">
+              <div class="font-bold text-rose-300">錯誤值 (Error)</div>
+              <div><span class="px-2 py-0.5 rounded bg-rose-900/40 text-rose-300 border border-rose-700/50">置中對齊 ⏺</span></div>
+              <div class="text-slate-300">公式運算異常回報</div>
+              <div class="text-rose-400 font-mono text-2xs">#N/A (查無港口), #VALUE! (文字相減)</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 7: 6 COMMON DIRTY DATA IN SHIPPING -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第3章：航運現場常見六大髒資料" data-note="互動亮點：學員可以點擊下方的髒資料標籤，右側會即時切換出航運真實情境與解決方案。">
+        <div class="space-y-4">
+          <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-amber-400 tracking-wider uppercase">Chapter 3 ｜ Shipping Dirty Data Spectrum</span>
+              <h2 class="text-2xl font-bold text-white">航運實務常見「髒資料」六大典型病徵</h2>
+            </div>
+            <span class="text-xs text-slate-400">點選不同卡片查看航運現場真實現象</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5" id="dirty-cards-container">
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-red-500/60 transition space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-red-400">類別 1</span>
+                <span class="text-2xs bg-red-950 px-2 py-0.5 rounded text-red-300 border border-red-800/40">重複性</span>
+              </div>
+              <h3 class="text-sm font-bold text-white">重複輸入的提單或訂艙</h3>
+              <p class="text-xs text-slate-400">同仁 A 手動登打，同仁 B 又重複匯入 EDI，導致同提單 EGLV1426001829 出現兩次，運費重複計價。</p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/60 transition space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-amber-400">類別 2</span>
+                <span class="text-2xs bg-amber-950 px-2 py-0.5 rounded text-amber-300 border border-amber-800/40">隱形字元</span>
+              </div>
+              <h3 class="text-sm font-bold text-white">前後多餘空白與換行符</h3>
+              <p class="text-xs text-slate-400">從 Email 複製的單號帶有前後空白 <code class="text-amber-300">" YML-102 "</code> 或結尾帶有不可見換行 <code class="text-amber-300">\n</code>，破壞查表比對。</p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-sky-500/60 transition space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-sky-400">類別 3</span>
+                <span class="text-2xs bg-sky-950 px-2 py-0.5 rounded text-sky-300 border border-sky-800/40">編碼混亂</span>
+              </div>
+              <h3 class="text-sm font-bold text-white">大小寫與標點符號不一</h3>
+              <p class="text-xs text-slate-400">港口寫成 <code class="text-sky-300">twkhh</code>、國貿條規寫成 <code class="text-sky-300">F.O.B.</code> 或 <code class="text-sky-300">c.i.f.</code>、櫃型寫成 <code class="text-sky-300">40'HC</code>，樞紐分析分類破碎。</p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-purple-500/60 transition space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-purple-400">類別 4</span>
+                <span class="text-2xs bg-purple-950 px-2 py-0.5 rounded text-purple-300 border border-purple-800/40">結構不整</span>
+              </div>
+              <h3 class="text-sm font-bold text-white">複合欄位未拆與混用符號</h3>
+              <p class="text-xs text-slate-400">將「船公司代碼」與「提單編號」連在一起，且有時用連字號 <code class="text-purple-300">-</code>、有時用斜線 <code class="text-purple-300">/</code> 或空白，無法個別篩選統計。</p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-teal-500/60 transition space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-teal-400">類別 5</span>
+                <span class="text-2xs bg-teal-950 px-2 py-0.5 rounded text-teal-300 border border-teal-800/40">型態陷阱</span>
+              </div>
+              <h3 class="text-sm font-bold text-white">文字日期與文字型費用</h3>
+              <p class="text-xs text-slate-400">點號日期 <code class="text-teal-300">2026.03.02</code> 或 8 碼數字 <code class="text-teal-300">20260303</code> 被判定為文字，運費含 USD 與貨重含 KGS 無法加總。</p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-rose-500/60 transition space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-rose-400">類別 6</span>
+                <span class="text-2xs bg-rose-950 px-2 py-0.5 rounded text-rose-300 border border-rose-800/40">邏輯異常</span>
+              </div>
+              <h3 class="text-sm font-bold text-white">業務邏輯矛盾與非合規長度</h3>
+              <p class="text-xs text-slate-400">預計到港 ETA 早於開船 ETD、貨櫃號碼只有 10 碼（少 1 碼校驗碼）、運費輸入負數 <code class="text-rose-300">-450</code> 等重大邏輯瑕疵。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 8: DATA PREPROCESSING 5-STEP SOP -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第3章：資料前處理黃金五步驟 (SOP)" data-note="強調 SOP 的第一步永遠是備份！第二步是結構整理（取消合併儲存格），第三步先清空白再去重，第四步轉型標準化，最後一步是邏輯檢核與標註。">
+        <div class="space-y-4">
+          <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">Chapter 3 ｜ Standard Operating Procedure</span>
+              <h2 class="text-2xl font-bold text-white">航運資料前處理標準作業流程（SOP 黃金五步驟）</h2>
+            </div>
+            <span class="text-xs bg-emerald-950 text-emerald-400 px-3 py-1 rounded-full border border-emerald-800/60 font-mono">Standard 5 Steps</span>
+          </div>
+
+          <div class="space-y-2.5">
+            <!-- Step 1 -->
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-4">
+              <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 font-black text-lg flex items-center justify-center border border-sky-500/40">1</div>
+              <div>
+                <h3 class="text-sm font-bold text-sky-300">Step 1 ｜ 備份原始資料（Never Touch Raw Data Directly）</h3>
+                <p class="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                  永遠在第一步複製工作表或另存新檔（如 <code class="text-sky-300">Raw_Backup</code>）。資料清理是不可逆的破壞性操作，保留未修改的原始檔才能在發生爭議時提供稽核軌跡。
+                </p>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-4">
+              <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 font-black text-lg flex items-center justify-center border border-teal-500/40">2</div>
+              <div>
+                <h3 class="text-sm font-bold text-teal-300">Step 2 ｜ 結構與版面整理（Tidy Structure First）</h3>
+                <p class="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                  解除所有合併儲存格、刪除報表上方的大公司標題列與說明空列，確保第一列是乾淨唯一的欄位標題，凍結頂端列（A2 凍結窗格）。
+                </p>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-4">
+              <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 font-black text-lg flex items-center justify-center border border-amber-500/40">3</div>
+              <div>
+                <h3 class="text-sm font-bold text-amber-300">Step 3 ｜ 去除多餘空白與重複項目（Clean Invisible Spaces & Deduplicate）</h3>
+                <p class="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                  先以 TRIM + CLEAN 清除字串前後不可見空白與換行符號（避免空白逃避比對），再以條件式格式確認重複提單，並執行「移除重複項目」。
+                </p>
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-4">
+              <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 font-black text-lg flex items-center justify-center border border-purple-500/40">4</div>
+              <div>
+                <h3 class="text-sm font-bold text-purple-300">Step 4 ｜ 拆分欄位、轉型與代碼標準化（Parse, Type-Cast & Standardize）</h3>
+                <p class="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                  將「船公司-提單」拆成兩欄；使用 UPPER 將港口代碼與貨櫃統一大寫；將點號日期與文字金額（去除 USD/$）強制轉型為真實數值與日期。
+                </p>
+              </div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-4">
+              <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 font-black text-lg flex items-center justify-center border border-emerald-500/40">5</div>
+              <div>
+                <h3 class="text-sm font-bold text-emerald-300">Step 5 ｜ 缺漏補標與業務邏輯檢核（Impute & Validate Logic）</h3>
+                <p class="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                  利用 F5 特殊目標或 IF 補填空白為「待補件」；跨表查表檢驗 UN/LOCODE 港口代碼；撰寫公式自動抓出 ETA 早於 ETD、貨櫃非 11 碼與負數運費。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 9: 30-ROW DEMO DATASET HEALTH CHECK -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第4章：30 筆示範檔健檢與問題清查" data-note="請學員打開隨附檔案 01_航運事務資料前處理_30筆示範檔.xlsx，對照圖 4 進行第一眼健康檢查。">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-sky-400 tracking-wider uppercase">Chapter 4 ｜ 30-Row Demo Dataset Health Check</span>
+              <h2 class="text-2xl font-bold text-white">30 筆航運原始檔實機開檔健檢清查清單</h2>
+            </div>
+            <span class="text-xs font-mono text-sky-400 bg-sky-950 px-2.5 py-1 rounded border border-sky-800/60">01_航運事務資料前處理_30筆示範檔.xlsx</span>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+            <!-- Left: Screenshot (7 cols) -->
+            <div class="lg:col-span-7 bg-slate-950/80 p-2 rounded-xl border border-slate-800">
+              <img src="images/fig_4_1_30rows_raw_dirty.png" alt="30 筆原始髒資料" class="zoomable-img rounded-lg w-full h-auto object-cover border border-slate-700/60" onclick="openLightbox(this.src)">
+              <div class="text-center text-xs text-slate-400 mt-2 font-mono">圖 4 ｜ 30 筆航運原始資料實機檢視與常見髒資料標籤標註圖</div>
+            </div>
+
+            <!-- Right: 8 Problems Breakdown (5 cols) -->
+            <div class="lg:col-span-5 space-y-2 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-red-400">1. 重複提單：</span>
+                <span class="text-slate-300">第 5 筆與第 19 筆提單號 <code class="text-sky-300 font-mono">EVG-EGLV1426001829</code> 完全重複。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-amber-400">2. 空白與換行：</span>
+                <span class="text-slate-300">第 2 筆前導空格、第 6 筆末端含換行符號 <code class="text-sky-300 font-mono">\n</code>。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-sky-400">3. 複合欄位分隔符：</span>
+                <span class="text-slate-300">第 10 筆用斜線 <code class="text-sky-300 font-mono">WHL/WHLC...</code>，第 24 筆用空白。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-purple-400">4. 大小寫混雜：</span>
+                <span class="text-slate-300">港口 <code class="text-sky-300 font-mono">twkhh</code>、國貿條規 <code class="text-sky-300 font-mono">F.O.B. / c.i.f.</code>、櫃型 <code class="text-sky-300 font-mono">40'HC</code>。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-teal-400">5. 混合格式日期：</span>
+                <span class="text-slate-300">第 4 筆為 8 碼純文字 <code class="text-sky-300 font-mono">20260303</code>，多筆為點號日期。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-emerald-400">6. 文字金額與符號：</span>
+                <span class="text-slate-300">運費欄含 <code class="text-sky-300 font-mono">USD 920</code>、<code class="text-sky-300 font-mono">$680</code>、逗號千分位。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-rose-400">7. 缺失遺漏值：</span>
+                <span class="text-slate-300">第 4 筆缺櫃型、第 13 筆缺專員、第 21 筆填無意義文字 <code class="text-sky-300 font-mono">N/A</code>。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-rose-500/40 bg-rose-950/10">
+                <span class="font-bold text-rose-300">8. 嚴重邏輯瑕疵：</span>
+                <span class="text-slate-300">第 9 筆 ETA 早於 ETD、第 16 筆櫃號只有 10 碼、第 29 筆運費為負數。</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 10: NO-FORMULA CLEANING (PART 1 - DUPES) -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第5章：免公式清理（重複項與條件標紅）" data-note="提醒學員：刪除重複前一定要先用條件式格式看清楚。在『移除重複項目』對話方塊中，因為每列序號不同，務必先取消全選，只勾選提單編號！">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-amber-400 tracking-wider uppercase">Chapter 5 ｜ No-Formula Cleaning Part 1</span>
+              <h2 class="text-2xl font-bold text-white">免公式清理術：條件式格式標紅 & 移除重複項目</h2>
+            </div>
+            <span class="text-xs bg-slate-900 px-3 py-1 rounded text-slate-300 border border-slate-800">滑鼠點選即可搞定</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <!-- Step A: Conditional Formatting -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-sky-300">步驟 1 ｜ 條件式格式設定先標記重複</h3>
+                <span class="text-2xs text-slate-400 font-mono">常用 ➔ 條件式格式設定</span>
+              </div>
+              <img src="images/fig_5_1_condfmt_duplicates.png" class="zoomable-img rounded w-full h-44 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="text-xs text-slate-300 leading-relaxed">
+                選取 B2:B31 ➔ 點選「常用」➔「條件式格式設定」➔「醒目提示儲存格規則」➔「重複的值」。第 6 列與第 20 列的提單 <code class="text-sky-300 font-mono">EVG-EGLV1426001829</code> 瞬間亮紅底！
+              </div>
+            </div>
+
+            <!-- Step B: Remove Duplicates -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-teal-300">步驟 2 ｜ 執行「移除重複項目」</h3>
+                <span class="text-2xs text-slate-400 font-mono">資料 ➔ 移除重複項</span>
+              </div>
+              <img src="images/fig_5_2_remove_duplicates_dialog.png" class="zoomable-img rounded w-full h-44 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="text-xs text-slate-300 leading-relaxed">
+                切換至「資料」➔「移除重複項目」➔ 點選「取消全選」➔ <strong>僅勾選「船公司-提單編號」</strong>（若全選會因為流水序號不同而刪不掉！）➔ 按下確定，成功移除 1 個重複值，保留 29 筆唯一資料。
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 11: NO-FORMULA CLEANING (PART 2 - REPLACE & TEXTSPLIT) -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第5章：免公式清理（Ctrl+H取代與資料剖析）" data-note="強調：執行資料剖析前，右側一定要先手動插入兩欄空白，否則拆出來的內容會直接覆蓋原本的訂艙日期！">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-amber-400 tracking-wider uppercase">Chapter 5 ｜ No-Formula Cleaning Part 2</span>
+              <h2 class="text-2xl font-bold text-white">免公式清理術：Ctrl+H 尋找取代 & 資料剖析拆解欄位</h2>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <!-- Ctrl+H -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-amber-300">步驟 3 ｜ 尋找及取代（Ctrl + H）標準化</h3>
+                <span class="text-2xs text-slate-400 font-mono">Ctrl + H 批次替換</span>
+              </div>
+              <img src="images/fig_5_3_find_replace_dialog.png" class="zoomable-img rounded w-full h-44 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="text-xs text-slate-300 leading-relaxed">
+                框選目標欄位 ➔ 按 <kbd class="bg-black/50 px-1.5 py-0.5 rounded border border-slate-700 text-sky-300">Ctrl + H</kbd>：
+                <ul class="list-disc list-inside mt-1 space-y-0.5 text-slate-400 text-2xs">
+                  <li>尋找 <code class="text-amber-300">F.O.B.</code> 取代成 <code class="text-emerald-300">FOB</code></li>
+                  <li>框選運費欄：尋找 <code class="text-amber-300">USD </code>（含空白）取代成「空值」，去除幣別文字。</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Text to Columns -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-sky-300">步驟 4 ｜ 資料剖析（Text to Columns）</h3>
+                <span class="text-2xs text-slate-400 font-mono">資料 ➔ 資料剖析精靈</span>
+              </div>
+              <img src="images/fig_5_4_text_to_columns_dialog.png" class="zoomable-img rounded w-full h-44 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="text-xs text-slate-300 leading-relaxed">
+                <strong>關鍵絕招：</strong>右側預先插入兩欄空白 ➔ 選取 B 欄 ➔ 點選「資料剖析」➔ 選「分隔符號」➔ 勾選「其他：<code class="text-sky-300">-</code>」➔ 按完成。一秒將單號乾淨拆為 C 欄「船公司」與 D 欄「純提單號」！
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 12: NO-FORMULA CLEANING (PART 3 - FILTER & TABLE) -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第5章：免公式清理（篩選、F5空格與表格）" data-note="分享 F5 特殊目標選空格的秘訣：全選表格，按 F5，選特殊，勾空格，輸入『待補件』按 Ctrl+Enter，瞬間補齊全表空白！">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-amber-400 tracking-wider uppercase">Chapter 5 ｜ No-Formula Cleaning Part 3</span>
+              <h2 class="text-2xl font-bold text-white">免公式清理術：自動篩選缺漏 & Ctrl+T 升級結構化表格</h2>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <!-- Filter Blanks -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-rose-300">步驟 5 ｜ 篩選空白與 F5 特殊目標補件</h3>
+                <span class="text-2xs text-slate-400 font-mono">Ctrl + Shift + L / F5 空格</span>
+              </div>
+              <img src="images/fig_5_5_autofilter_blanks.png" class="zoomable-img rounded w-full h-44 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="text-xs text-slate-300 leading-relaxed">
+                按 <kbd class="bg-black/50 px-1.5 py-0.5 rounded border border-slate-700 text-sky-300">Ctrl + Shift + L</kbd> 開啟篩選箭頭 ➔ 勾選「(空白)」集中檢視漏填專員的案件。或按 <kbd class="bg-black/50 px-1.5 py-0.5 rounded border border-slate-700 text-amber-300">F5</kbd> ➔「特殊」➔「空格」➔ 輸入「待補件」按 <kbd class="bg-black/50 px-1.5 py-0.5 rounded border border-slate-700 text-emerald-300">Ctrl + Enter</kbd> 批次補齊！
+              </div>
+            </div>
+
+            <!-- Format as Table -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-emerald-300">步驟 6 ｜ 格式化為表格（Ctrl + T）</h3>
+                <span class="text-2xs text-slate-400 font-mono">Ctrl + T 建立結構化清單</span>
+              </div>
+              <img src="images/fig_5_6_format_as_table.png" class="zoomable-img rounded w-full h-44 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="text-xs text-slate-300 leading-relaxed">
+                點選表格任一儲存格 ➔ 按下 <kbd class="bg-black/50 px-1.5 py-0.5 rounded border border-slate-700 text-emerald-300">Ctrl + T</kbd> ➔ 勾選「我的表格有標題」。自動套用專業斑馬紋、向下捲動自動將欄位名固定在列標題，未來新增資料公式自動延展！
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 13: FORMULA AUTOMATION (PART 1 - TEXT & ISO 6346) -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第6章：函數公式自動化（文字清理與貨櫃檢核）" data-note="強調：函數清理的好處是日後每個月直接把新資料貼進 Raw sheet，清理工作表自動更新，完全不需要滑鼠重複操作點選 10 幾次。">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-sky-400 tracking-wider uppercase">Chapter 6 ｜ Formula Automation Part 1</span>
+              <h2 class="text-2xl font-bold text-white">函數公式自動化：TRIM、CLEAN、UPPER 與 LEN 貨櫃檢核</h2>
+            </div>
+            <span class="text-xs bg-sky-950 px-3 py-1 rounded text-sky-300 border border-sky-800/60 font-mono">可重複套用的動態底表</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <!-- TRIM + CLEAN -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-sky-300">TRIM + CLEAN 雙重空白換行清理</h3>
+                <span class="text-2xs text-slate-400 font-mono">B 欄公式</span>
+              </div>
+              <img src="images/fig_6_1_trim_clean_formula.png" class="zoomable-img rounded w-full h-40 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="p-2.5 rounded bg-slate-950 border border-slate-800/90 font-mono text-2xs text-amber-300 overflow-x-auto">
+                =SUBSTITUTE(SUBSTITUTE(TRIM(CLEAN(原始資料!B2)),"/","-")," ","-")
+              </div>
+              <div class="text-xs text-slate-300 leading-relaxed text-2xs">
+                CLEAN 消除所有非列印控制字元（如換行）；TRIM 消除前後空白；外層雙重 SUBSTITUTE 把「/」與「 」統一轉為「-」。
+              </div>
+            </div>
+
+            <!-- LEN Check -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-emerald-300">LEN 檢核 ISO 6346 貨櫃 11 碼標準</h3>
+                <span class="text-2xs text-slate-400 font-mono">J 欄公式</span>
+              </div>
+              <img src="images/fig_6_2_text_split_len_formula.png" class="zoomable-img rounded w-full h-40 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="p-2.5 rounded bg-slate-950 border border-slate-800/90 font-mono text-2xs text-emerald-300 overflow-x-auto">
+                =IF(LEN(I2)=11, "正常(11碼)", "異常(" & LEN(I2) & "碼)")
+              </div>
+              <div class="text-xs text-slate-300 leading-relaxed text-2xs">
+                國際貨櫃編碼 ISO 6346 規定為 11 碼（4 字母箱主與類別 + 6 碼序號 + 1 碼校驗碼）。公式自動抓出序號 16 少一碼的 <code class="text-rose-300">YMLU842109</code>！
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 14: FORMULA AUTOMATION (PART 2 - VALUE, DATE, VLOOKUP) -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第6章：函數公式自動化（轉型、查表與成果）" data-note="提醒學員注意：VALUE 函數是把文字型數字轉回真正數字的關鍵；VLOOKUP 最後一個參數一定要放 FALSE，才不會抓到錯的港口！">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-sky-400 tracking-wider uppercase">Chapter 6 ｜ Formula Automation Part 2</span>
+              <h2 class="text-2xl font-bold text-white">VALUE 數字轉型、IF 航程邏輯檢核與 VLOOKUP 查表成果</h2>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <!-- VALUE + DATE + IF -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-rose-300">VALUE 轉純數值 & IF 航程異常攔截</h3>
+                <span class="text-2xs text-slate-400 font-mono">P 欄航程天數公式</span>
+              </div>
+              <img src="images/fig_6_3_value_date_if_formula.png" class="zoomable-img rounded w-full h-40 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="p-2.5 rounded bg-slate-950 border border-slate-800/90 font-mono text-2xs text-rose-300 overflow-x-auto">
+                =IF(O10&lt;N10, "異常：ETA早於ETD", O10-N10)
+              </div>
+              <div class="text-xs text-slate-300 leading-relaxed text-2xs">
+                運費以 <code class="text-amber-300">VALUE(SUBSTITUTE(K2,"USD",""))</code> 轉為純數字；開船日與到港日相減若小於 0，自動標註「異常：ETA早於ETD」！
+              </div>
+            </div>
+
+            <!-- VLOOKUP Final Clean Sheet -->
+            <div class="space-y-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-emerald-300">VLOOKUP 查表驗證與最終標準底表</h3>
+                <span class="text-2xs text-slate-400 font-mono">清理完成_乾淨資料 (29筆)</span>
+              </div>
+              <img src="images/fig_6_4_vlookup_clean_result.png" class="zoomable-img rounded w-full h-40 object-cover border border-slate-800" onclick="openLightbox(this.src)">
+              <div class="p-2.5 rounded bg-slate-950 border border-slate-800/90 font-mono text-2xs text-emerald-300 overflow-x-auto">
+                =IFERROR(VLOOKUP(G2, 港口對照表!$A$2:$B$18, 2, FALSE), "代碼異常")
+              </div>
+              <div class="text-xs text-slate-300 leading-relaxed text-2xs">
+                去重後 29 筆乾淨底表，無效代碼顯示「代碼異常」，需複核事項以黃底警示，全體有效海運費正數精準加總為 <strong class="text-white">49,330 USD</strong>。
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 15: 300-ROW CASE PRACTICE (5 SCENARIOS) -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第7章：300 筆跨情境實戰練習檔挑戰" data-note="向學員展示 300 筆練習檔的 5 大情境設計。提醒大家空運主提單 AWB 自帶連字號，切記要用 FIND 找第一個連字號，不要切錯！">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-purple-400 tracking-wider uppercase">Chapter 7 ｜ 300-Row Multi-Scenario Practice</span>
+              <h2 class="text-2xl font-bold text-white">300 筆跨情境航運實戰：五大業務類型與八大任務</h2>
+            </div>
+            <span class="text-xs font-mono text-purple-300 bg-purple-950 px-2.5 py-1 rounded border border-purple-800/60">02_航運案例情境練習檔_300筆.xlsx</span>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+            <!-- Left: Practice Screenshot (7 cols) -->
+            <div class="lg:col-span-7 bg-slate-950/80 p-2 rounded-xl border border-slate-800">
+              <img src="images/fig_7_1_300rows_practice.png" alt="300 筆跨情境練習檔" class="zoomable-img rounded-lg w-full h-auto object-cover border border-slate-700/60" onclick="openLightbox(this.src)">
+              <div class="text-center text-xs text-slate-400 mt-2 font-mono">圖 15 ｜ 300 筆跨情境航運案例練習檔「練習資料_300筆」實機畫面</div>
+            </div>
+
+            <!-- Right: 5 Scenarios Breakdown (5 cols) -->
+            <div class="lg:col-span-5 space-y-2 text-xs">
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-sky-400">1. 整櫃海運出口 (FCL - 60筆)：</span>
+                <span class="text-slate-300">40HQ/20GP/40'HC 櫃型混亂、重複訂艙與文字金額。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-teal-400">2. 併櫃海運出口 (LCL - 60筆)：</span>
+                <span class="text-slate-300">計費量單位為「CBM（材積）」而非公斤，須去字轉小數。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-amber-400">3. 海運進口延滯 (IMP - 60筆)：</span>
+                <span class="text-slate-300">備註含延滯超期天數，包含 ETA 早於 ETD 之倒置輸入。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                <span class="font-bold text-rose-400">4. 危險品與冷凍 (DG/RF - 60筆)：</span>
+                <span class="text-slate-300">溫度代碼 (-18°C / -18C) 與 IMO Class 危險品標籤文字。</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-900 border border-purple-500/40 bg-purple-950/10">
+                <span class="font-bold text-purple-300">5. 空運與海空聯運 (AIR - 60筆)：</span>
+                <span class="text-slate-300">★陷阱題！空運主號 (如 297-88120341) 自帶連字號，拆解時須特別小心！</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 16: 300-ROW BENCHMARK DASHBOARD & VALIDATION -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第7章：300 筆參考解答與檢核儀表板" data-note="恭喜學員完成練習！請學員對照解答檔的 9 項指標，只要所有公式統計結果一致，就代表已經完全具備航運資料前處理的扎實基礎。">
+        <div class="space-y-3.5">
+          <div class="border-b border-slate-800 pb-2.5 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">Chapter 7 ｜ Solution Benchmark & Validation</span>
+              <h2 class="text-2xl font-bold text-white">300 筆參考解答：自動統計檢核儀表板與基準數據</h2>
+            </div>
+            <span class="text-xs font-mono text-emerald-300 bg-emerald-950 px-2.5 py-1 rounded border border-emerald-800/60">03_航運案例情境練習檔_300筆_參考解答.xlsx</span>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+            <!-- Left: Solution Dashboard Screenshot (7 cols) -->
+            <div class="lg:col-span-7 bg-slate-950/80 p-2 rounded-xl border border-slate-800">
+              <img src="images/fig_7_2_300rows_solution_dashboard.png" alt="300 筆解答檢核儀表板" class="zoomable-img rounded-lg w-full h-auto object-cover border border-slate-700/60" onclick="openLightbox(this.src)">
+              <div class="text-center text-xs text-slate-400 mt-2 font-mono">圖 16 ｜ 300 筆參考解答「前處理總覽與檢核摘要」實機公式統計畫面</div>
+            </div>
+
+            <!-- Right: Exact Metrics Table (5 cols) -->
+            <div class="lg:col-span-5 space-y-1.5 text-xs">
+              <div class="rounded-xl overflow-hidden border border-slate-800 bg-slate-900/80">
+                <div class="px-3 py-2 bg-slate-900 font-bold text-slate-200 border-b border-slate-800 flex justify-between items-center">
+                  <span>檢核項目名稱</span>
+                  <span class="text-emerald-400 font-mono">基準正確數值</span>
+                </div>
+                <div class="p-2 space-y-1 font-mono text-2xs">
+                  <div class="flex justify-between p-1.5 rounded bg-slate-950/50">
+                    <span class="text-slate-400 font-sans">原始資料總筆數</span>
+                    <span class="text-slate-200 font-bold">300 筆</span>
+                  </div>
+                  <div class="flex justify-between p-1.5 rounded bg-slate-950/50">
+                    <span class="text-slate-400 font-sans">重複單據筆數（第 2 次起）</span>
+                    <span class="text-amber-400 font-bold">12 筆</span>
+                  </div>
+                  <div class="flex justify-between p-1.5 rounded bg-slate-950/50">
+                    <span class="text-slate-400 font-sans">去重後唯一單據總筆數</span>
+                    <span class="text-sky-300 font-bold">288 筆</span>
+                  </div>
+                  <div class="flex justify-between p-1.5 rounded bg-slate-950/50">
+                    <span class="text-slate-400 font-sans">無效目的地代碼 (USXXX)</span>
+                    <span class="text-rose-400 font-bold">6 筆</span>
+                  </div>
+                  <div class="flex justify-between p-1.5 rounded bg-slate-950/50">
+                    <span class="text-slate-400 font-sans">貨櫃/載具非 11 碼長度</span>
+                    <span class="text-amber-400 font-bold">10 筆</span>
+                  </div>
+                  <div class="flex justify-between p-1.5 rounded bg-slate-950/50">
+                    <span class="text-slate-400 font-sans">ETA 早於 ETD 倒置異常</span>
+                    <span class="text-rose-400 font-bold">8 筆</span>
+                  </div>
+                  <div class="flex justify-between p-1.5 rounded bg-slate-950/50">
+                    <span class="text-slate-400 font-sans">負數費用異常筆數 (&lt; 0)</span>
+                    <span class="text-rose-400 font-bold">5 筆</span>
+                  </div>
+                  <div class="flex justify-between p-1.5 rounded bg-slate-950/50">
+                    <span class="text-slate-400 font-sans">規格 / 條規 / 專員缺漏</span>
+                    <span class="text-purple-300 font-bold">10 / 6 / 9 筆</span>
+                  </div>
+                  <div class="flex justify-between p-1.5 rounded bg-emerald-950/40 border border-emerald-800/40 text-xs">
+                    <span class="text-emerald-300 font-sans font-bold">有效正數預估總費用</span>
+                    <span class="text-emerald-300 font-bold">$ 649,990 USD</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- SLIDE 17: SUMMARY, Q&A & REFERENCES -->
+      <!-- ============================================================== -->
+      <section class="slide-canvas" data-title="第8章：總結口訣與國際參考來源" data-note="感謝大家的聆聽與學習！鼓勵學員在職場上把這套五步驟流程固化為個人工作習慣，未來拿到任何 Excel 報表都能在 5 分鐘內清理乾淨！">
+        <div class="space-y-4">
+          <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-sky-400 tracking-wider uppercase">Chapter 8 ｜ Summary & Authoritative References</span>
+              <h2 class="text-2xl font-bold text-white">總結口訣、避雷心法與國際規範引用來源</h2>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Summary Tips -->
+            <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+              <h3 class="text-sm font-bold text-sky-300 flex items-center gap-2">
+                <span>🛡️ 航運行政人員前處理「四不四要」口訣</span>
+              </h3>
+              <ul class="space-y-1.5 text-xs text-slate-300 leading-relaxed">
+                <li class="flex items-start gap-2">
+                  <span class="text-rose-400 font-bold">✖ 不</span> 直接拿原始檔算公式（永遠先做備份複本）。
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="text-rose-400 font-bold">✖ 不</span> 在分析底表合併儲存格或插入小計列。
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="text-rose-400 font-bold">✖ 不</span> 忽視尾端看不到的換行符與多餘空白。
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="text-rose-400 font-bold">✖ 不</span> 把幣別（USD）或單位（KGS）與數字寫在同一格。
+                </li>
+                <li class="flex items-start gap-2 pt-1">
+                  <span class="text-emerald-400 font-bold">✔ 要</span> 熟練 TRIM、CLEAN 與 UPPER 基礎清理。
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="text-emerald-400 font-bold">✔ 要</span> 以 VALUE 與 DATE 強制轉型回正確數值。
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="text-emerald-400 font-bold">✔ 要</span> 善用 LEN 檢查 11 碼貨櫃號與 IF 抓倒置航程。
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="text-emerald-400 font-bold">✔ 要</span> 養成使用 Ctrl+T 格式化為表格的高效好習慣！
+                </li>
+              </ul>
+            </div>
+
+            <!-- References -->
+            <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2.5">
+              <h3 class="text-sm font-bold text-teal-300 flex items-center gap-2">
+                <span>📚 國際標準與官方參考資料引用來源</span>
+              </h3>
+              <div class="space-y-2 text-2xs text-slate-400 leading-relaxed font-sans">
+                <div class="p-2 rounded bg-slate-950 border border-slate-800/80">
+                  <strong class="text-slate-200">[1] Microsoft Corporation (2026).</strong> Microsoft Excel 繁體中文官方支援指南（含移除重複項目、資料剖析、TRIM/CLEAN、XLOOKUP 語法）。
+                </div>
+                <div class="p-2 rounded bg-slate-950 border border-slate-800/80">
+                  <strong class="text-slate-200">[2] Hadley Wickham (2014).</strong> Tidy Data. <em>Journal of Statistical Software</em>, 59(10), 1–23. DOI: 10.18637/jss.v059.i10（整潔資料定義）。
+                </div>
+                <div class="p-2 rounded bg-slate-950 border border-slate-800/80">
+                  <strong class="text-slate-200">[3] UNECE / UN/CEFACT.</strong> UN/LOCODE (貿易與運輸地點代碼) & Recommendation No. 5: Incoterms Abbreviations (ECE/TRADE/458)。
+                </div>
+                <div class="p-2 rounded bg-slate-950 border border-slate-800/80">
+                  <strong class="text-slate-200">[4] International Chamber of Commerce [ICC] (2019).</strong> Incoterms® 2020: ICC Rules for Domestic & Int'l Trade (Pub No. 723E)。
+                </div>
+                <div class="p-2 rounded bg-slate-950 border border-slate-800/80">
+                  <strong class="text-slate-200">[5] ISO (2022).</strong> ISO 6346:2022 Freight containers — Coding, identification and marking (4th ed.). BIC.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Presentation Control Bar -->
+    <footer class="h-16 px-6 border-t border-slate-800/80 bg-slate-950/80 backdrop-blur z-20 flex items-center justify-between">
+      <!-- Left: Slide Selector Dropdown & Jump -->
+      <div class="flex items-center gap-3">
+        <select id="slide-jump-select" class="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-lg px-3 py-1.5 outline-none focus:border-sky-500 font-medium">
+          <!-- Populated by JS -->
+        </select>
+        <span class="text-xs text-slate-500 font-mono hidden sm:inline" id="slide-progress-text">Slide 1 / 17</span>
+      </div>
+
+      <!-- Center: Progress Bar -->
+      <div class="hidden md:flex flex-1 max-w-md mx-6 flex-col gap-1">
+        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+          <div id="progress-bar-fill" class="h-full bg-gradient-to-r from-sky-400 via-teal-400 to-emerald-400 transition-all duration-300" style="width: 5.88%;"></div>
+        </div>
+      </div>
+
+      <!-- Right: Navigation Buttons (Previous / Next) -->
+      <div class="flex items-center gap-2">
+        <button id="btn-prev" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition flex items-center gap-1.5 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+          <span class="hidden sm:inline">上一頁</span>
+        </button>
+        <button id="btn-next" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold transition flex items-center gap-1.5 text-xs shadow-md shadow-sky-600/30 disabled:opacity-40 disabled:cursor-not-allowed">
+          <span class="hidden sm:inline">下一頁</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        </button>
+      </div>
+    </footer>
+
+    <!-- Slide Outline Drawer Menu -->
+    <aside id="drawer" class="fixed top-0 bottom-0 left-0 w-80 bg-slate-950/95 backdrop-blur-xl border-r border-slate-800 z-50 p-5 flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+          <h3 class="font-bold text-sm text-white">簡報投影片目錄</h3>
+        </div>
+        <button id="btn-close-drawer" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">✕</button>
+      </div>
+      <div class="flex-1 overflow-y-auto py-3 space-y-1.5 text-xs" id="drawer-slide-list">
+        <!-- Injected by JS -->
+      </div>
+      <div class="pt-3 border-t border-slate-800 text-2xs text-slate-500 font-mono text-center">
+        快捷鍵：M/O 開關目錄 ｜ 空白鍵/左右鍵換頁
+      </div>
+    </aside>
+
+    <!-- Presenter Note Floating Dialog -->
+    <div id="notes-modal" class="hidden fixed bottom-20 right-8 w-96 bg-slate-900/95 backdrop-blur-lg border border-amber-500/30 rounded-2xl p-4 shadow-2xl z-40 text-xs space-y-2">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <span class="font-bold text-amber-400 flex items-center gap-1.5">
+          <span>💡 講師講解重點與操作提醒</span>
+        </span>
+        <button id="btn-close-notes" class="text-slate-500 hover:text-white">✕</button>
+      </div>
+      <div id="notes-content" class="text-slate-300 leading-relaxed max-h-56 overflow-y-auto text-2xs">
+        <!-- Injected by JS based on current slide -->
+      </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div id="lightbox" onclick="closeLightbox()">
+      <div class="relative max-w-6xl max-h-[92vh] flex flex-col items-center" onclick="event.stopPropagation()">
+        <img id="lightbox-img" src="" alt="放大檢視" class="max-w-full max-h-[85vh] rounded-xl border border-slate-700 shadow-2xl object-contain">
+        <div class="flex items-center justify-between w-full mt-3 px-2">
+          <span class="text-xs text-slate-300 font-mono" id="lightbox-caption">實機操作畫面詳細標註</span>
+          <button class="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-white" onclick="closeLightbox()">關閉 (Esc)</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Slide Deck Core Logic
+    const slides = Array.from(document.querySelectorAll('.slide-canvas'));
+    const totalSlides = slides.length;
+    let currentSlide = 0;
+
+    const topTitle = document.getElementById('top-title');
+    const slideProgressText = document.getElementById('slide-progress-text');
+    const progressBarFill = document.getElementById('progress-bar-fill');
+    const slideJumpSelect = document.getElementById('slide-jump-select');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const drawer = document.getElementById('drawer');
+    const drawerList = document.getElementById('drawer-slide-list');
+    const notesModal = document.getElementById('notes-modal');
+    const notesContent = document.getElementById('notes-content');
+
+    // Populate Slide Jump Select & Drawer
+    slides.forEach((s, idx) => {
+      const title = s.getAttribute('data-title') || `第 ${idx + 1} 頁`;
+      
+      // Dropdown option
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = `${idx + 1}. ${title}`;
+      slideJumpSelect.appendChild(opt);
+
+      // Drawer item
+      const item = document.createElement('div');
+      item.className = `p-2.5 rounded-lg cursor-pointer transition flex items-center justify-between ${idx === 0 ? 'bg-sky-950 text-sky-300 font-bold border border-sky-800/60' : 'hover:bg-slate-900 text-slate-400'}`;
+      item.innerHTML = `
+        <span class="truncate max-w-[200px]">${idx + 1}. ${title}</span>
+        <span class="font-mono text-2xs opacity-60">P.${idx+1}</span>
+      `;
+      item.onclick = () => {
+        goToSlide(idx);
+        closeDrawer();
+      };
+      drawerList.appendChild(item);
+    });
+
+    function updateDeck() {
+      slides.forEach((s, idx) => {
+        if (idx === currentSlide) {
+          s.classList.add('active');
+        } else {
+          s.classList.remove('active');
+        }
+      });
+
+      const activeSlide = slides[currentSlide];
+      const title = activeSlide.getAttribute('data-title') || '航運 Excel 資料前處理實務';
+      topTitle.textContent = title;
+      slideProgressText.textContent = `Slide ${currentSlide + 1} / ${totalSlides}`;
+      slideJumpSelect.value = currentSlide;
+
+      // Update progress bar
+      const pct = ((currentSlide + 1) / totalSlides) * 100;
+      progressBarFill.style.width = `${pct}%`;
+
+      // Update button disabled state
+      btnPrev.disabled = currentSlide === 0;
+      btnNext.disabled = currentSlide === totalSlides - 1;
+
+      // Update Drawer active styles
+      Array.from(drawerList.children).forEach((child, idx) => {
+        if (idx === currentSlide) {
+          child.className = 'p-2.5 rounded-lg cursor-pointer transition flex items-center justify-between bg-sky-950 text-sky-300 font-bold border border-sky-800/60';
+        } else {
+          child.className = 'p-2.5 rounded-lg cursor-pointer transition flex items-center justify-between hover:bg-slate-900 text-slate-400';
+        }
+      });
+
+      // Update notes
+      const note = activeSlide.getAttribute('data-note') || '此投影片尚無額外備註。';
+      notesContent.innerHTML = note.replace(/\n/g, '<br>');
+    }
+
+    function goToSlide(index) {
+      if (index >= 0 && index < totalSlides) {
+        currentSlide = index;
+        updateDeck();
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateDeck();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateDeck();
+      }
+    }
+
+    // Event Listeners for Nav
+    btnPrev.onclick = prevSlide;
+    btnNext.onclick = nextSlide;
+    document.querySelectorAll('.btn-next-slide').forEach(btn => btn.onclick = nextSlide);
+
+    slideJumpSelect.onchange = (e) => {
+      goToSlide(parseInt(e.target.value));
+    };
+
+    // Keyboard Navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        goToSlide(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        goToSlide(totalSlides - 1);
+      } else if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key.toLowerCase() === 'm' || e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        toggleDrawer();
+      } else if (e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        toggleNotes();
+      } else if (e.key === 'Escape') {
+        closeLightbox();
+        closeDrawer();
+        notesModal.classList.add('hidden');
+      }
+    });
+
+    // Drawer Controls
+    function toggleDrawer() {
+      drawer.classList.toggle('open');
+    }
+    function closeDrawer() {
+      drawer.classList.remove('open');
+    }
+    document.getElementById('btn-toggle-drawer').onclick = toggleDrawer;
+    document.getElementById('btn-close-drawer').onclick = closeDrawer;
+
+    // Notes Controls
+    function toggleNotes() {
+      notesModal.classList.toggle('hidden');
+    }
+    document.getElementById('btn-toggle-notes').onclick = toggleNotes;
+    document.getElementById('btn-close-notes').onclick = () => notesModal.classList.add('hidden');
+
+    // Fullscreen Controls
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+    document.getElementById('btn-fullscreen').onclick = toggleFullscreen;
+
+    // Lightbox Controls
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxCaption = document.getElementById('lightbox-caption');
+
+    function openLightbox(src) {
+      lightboxImg.src = src;
+      lightboxCaption.textContent = src.split('/').pop();
+      lightbox.classList.add('active');
+    }
+    function closeLightbox() {
+      lightbox.classList.remove('active');
+    }
+
+    // Presentation Timer
+    let secondsElapsed = 0;
+    setInterval(() => {
+      secondsElapsed++;
+      const m = Math.floor(secondsElapsed / 60).toString().padStart(2, '0');
+      const s = (secondsElapsed % 60).toString().padStart(2, '0');
+      document.getElementById('deck-timer').textContent = `${m}:${s}`;
+    }, 1000);
+    document.getElementById('btn-timer-reset').onclick = () => {
+      secondsElapsed = 0;
+      document.getElementById('deck-timer').textContent = "00:00";
+    };
+
+    // Initialize
+    updateDeck();
+  </script>
+</body>
+</html>
